@@ -27,6 +27,7 @@ import io.trino.spi.type.TypeOperators;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.io.File;
 import java.net.URL;
 import java.util.List;
 import java.util.Map;
@@ -1114,7 +1115,7 @@ class TestOpenApiSpec
     {
         OpenApiConfig config = new OpenApiConfig();
         URL specResource = requireNonNull(getClass().getClassLoader().getResource(name));
-        config.setSpecLocation(specResource.getFile());
+        config.setSpecLocation(new File(specResource.getFile()).getPath());
         return new OpenApiSpec(config);
     }
 
