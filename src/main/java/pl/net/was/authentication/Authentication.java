@@ -20,6 +20,7 @@ import com.google.inject.Inject;
 import io.airlift.http.client.BodyGenerator;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpRequestFilter;
+import io.airlift.http.client.HttpStatusListener;
 import io.airlift.http.client.Request;
 import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
@@ -30,6 +31,7 @@ import pl.net.was.OpenApiSpec;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLEncoder;
+import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -50,7 +52,7 @@ import static java.util.stream.Collectors.joining;
 import static pl.net.was.authentication.AuthenticationScheme.BEARER;
 
 public class Authentication
-        implements HttpRequestFilter
+        implements HttpRequestFilter, HttpStatusListener
 {
     private final Map<String, Map<PathItem.HttpMethod, List<SecurityRequirement>>> pathSecurityRequirements;
     private final Map<String, SecurityScheme> securitySchemas;
@@ -70,7 +72,8 @@ public class Authentication
     private final String tokenEndpoint;
     private final String clientId;
     private final String clientSecret;
-    private final Supplier<String> token = Suppliers.memoize(this::getToken);
+
+    private Supplier<TokenResponse> token;
 
     @Inject
     public Authentication(OpenApiConfig config,
@@ -227,7 +230,19 @@ public class Authentication
                       write:pets: modify pets in your account
                       read:pets: read your pets
                  */
-        return builder.addHeader("Authorization", "Bearer " + token.get());
+
+        if (token == null) {
+            initToken();
+        }
+
+        return builder.addHeader("Authorization", "Bearer " + token.get().accessToken);
+    }
+
+    private void initToken()
+    {
+        TokenResponse initialToken = this.getToken();
+
+        this.token = Suppliers.memoizeWithExpiration(this::getToken, Duration.ofSeconds(initialToken.expiresInSeconds));
     }
 
     private static String getAuthHeader(String scheme, String username, String password)
@@ -240,7 +255,7 @@ public class Authentication
         return input.substring(0, 1).toUpperCase(Locale.ENGLISH) + input.substring(1).toLowerCase(Locale.ENGLISH);
     }
 
-    private String getToken()
+    private TokenResponse getToken()
     {
         requireNonNull(bodyGenerator, "bodyGenerator is null");
         return httpClient.execute(
@@ -252,8 +267,7 @@ public class Authentication
                                 .setHeader("Authorization", "Basic " + base64Url().encode("%s:%s".formatted(clientId, clientSecret).getBytes(UTF_8)))
                                 .setBodyGenerator(bodyGenerator)
                                 .build(),
-                        createJsonResponseHandler(jsonCodec(Authentication.TokenResponse.class)))
-                .accessToken();
+                        createJsonResponseHandler(jsonCodec(Authentication.TokenResponse.class)));
     }
 
     private static String getBody(String grantType, String username, String password)
@@ -278,7 +292,16 @@ public class Authentication
         return format("%s=%s", key, URLEncoder.encode(value, UTF_8));
     }
 
+    @Override
+    public void statusReceived(int statusCode)
+    {
+        if (statusCode == 401) {
+            token = null;
+        }
+    }
+
     public record TokenResponse(
             @JsonProperty("token_type") String tokenType,
-            @JsonProperty("access_token") String accessToken) {}
+            @JsonProperty("access_token") String accessToken,
+            @JsonProperty("expires_in") long expiresInSeconds) {}
 }
