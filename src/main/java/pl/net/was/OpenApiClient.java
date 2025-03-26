@@ -79,7 +79,6 @@ import static io.trino.spi.StandardErrorCode.INVALID_ROW_FILTER;
 import static io.trino.spi.type.DecimalConversions.longDecimalToDouble;
 import static io.trino.spi.type.DecimalConversions.shortDecimalToDouble;
 import static io.trino.spi.type.VarcharType.VARCHAR;
-import static java.lang.Double.longBitsToDouble;
 import static java.lang.Float.intBitsToFloat;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -309,7 +308,7 @@ public class OpenApiClient
         return switch (column.getType().getBaseName()) {
             case StandardTypes.BIGINT, StandardTypes.INTEGER, StandardTypes.SMALLINT, StandardTypes.TINYINT -> domain.getSingleValue();
             case StandardTypes.REAL -> intBitsToFloat(((Long) domain.getSingleValue()).intValue());
-            case StandardTypes.DOUBLE -> longBitsToDouble((Long) domain.getSingleValue());
+            case StandardTypes.DOUBLE -> (Double) domain.getSingleValue();
             case StandardTypes.DECIMAL -> toDecimal(domain.getSingleValue(), (DecimalType) column.getType());
             case StandardTypes.VARCHAR -> ((Slice) domain.getSingleValue()).toStringUtf8();
             case StandardTypes.DATE -> toDate((Long) domain.getSingleValue(), column.getSourceType());
@@ -474,7 +473,7 @@ public class OpenApiClient
             }
 
             try {
-                return convertJson(table, objectMapper.readTree(result));
+                return convertJson(table, PathItem.HttpMethod.valueOf(request.getMethod()), objectMapper.readTree(result));
             }
             catch (JsonProcessingException ex) {
                 throw new TrinoException(GENERIC_INTERNAL_ERROR, format("Could not marshal JSON from API response: %s", result), ex);
@@ -482,24 +481,25 @@ public class OpenApiClient
         }
     }
 
-    private Iterable<List<?>> convertJson(OpenApiTableHandle table, JsonNode jsonNode)
+    private Iterable<List<?>> convertJson(OpenApiTableHandle table, PathItem.HttpMethod httpMethod, JsonNode jsonNode)
     {
         ImmutableList.Builder<List<?>> resultRecordsBuilder = ImmutableList.builder();
 
-        Map<String, Object> pathParams = getFilterValues(table, PathItem.HttpMethod.GET, null);
+        Map<String, Object> params = getFilterValues(table, httpMethod, null);
+
         if (jsonNode instanceof ArrayNode arrayNode) {
             for (JsonNode jsonRecord : arrayNode) {
-                resultRecordsBuilder.addAll(convertJsonToRecords(table, pathParams, jsonRecord));
+                resultRecordsBuilder.addAll(convertJsonToRecords(table, params, jsonRecord));
             }
         }
         else {
-            resultRecordsBuilder.addAll(convertJsonToRecords(table, pathParams, jsonNode));
+            resultRecordsBuilder.addAll(convertJsonToRecords(table, params, jsonNode));
         }
 
         return resultRecordsBuilder.build();
     }
 
-    private Iterable<List<?>> convertJsonToRecords(OpenApiTableHandle table, Map<String, Object> pathParams, JsonNode jsonNode)
+    private Iterable<List<?>> convertJsonToRecords(OpenApiTableHandle table, Map<String, Object> params, JsonNode jsonNode)
     {
         if (!jsonNode.isObject()) {
             throw new TrinoException(GENERIC_INTERNAL_ERROR, format("JsonNode is not an object: %s", jsonNode));
@@ -530,7 +530,7 @@ public class OpenApiClient
             for (OpenApiColumn column : columns) {
                 if (column.getName().equals(ROW_ID)) {
                     // TODO this is dangerous, make it configurable and required?
-                    recordBuilder.add(pathParams.values().stream().findFirst().map(Object::toString).orElse(null));
+                    recordBuilder.add(params.values().stream().findFirst().map(Object::toString).orElse(null));
                     continue;
                 }
                 String parameterName = column.getSourceName();
@@ -551,7 +551,7 @@ public class OpenApiClient
                                         column.getSourceType()));
                     }
                     else {
-                        recordBuilder.add(pathParams.getOrDefault(parameterName, null));
+                        recordBuilder.add(params.getOrDefault(parameterName, null));
                     }
                     continue;
                 }
