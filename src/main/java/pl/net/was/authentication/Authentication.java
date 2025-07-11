@@ -25,6 +25,7 @@ import io.airlift.http.client.Request;
 import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.trino.spi.TrinoException;
 import pl.net.was.OpenApiConfig;
 import pl.net.was.OpenApiSpec;
 
@@ -44,6 +45,7 @@ import static io.airlift.http.client.Request.Builder.fromRequest;
 import static io.airlift.http.client.Request.Builder.preparePost;
 import static io.airlift.http.client.StaticBodyGenerator.createStaticBodyGenerator;
 import static io.airlift.json.JsonCodec.jsonCodec;
+import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
@@ -260,14 +262,30 @@ public class Authentication
         requireNonNull(bodyGenerator, "bodyGenerator is null");
         return httpClient.execute(
                         preparePost()
-                                .setUri(uriBuilderFrom(baseUri)
-                                        .replacePath(tokenEndpoint)
-                                        .build())
+                                .setUri(getTokenUri())
                                 .setHeader("Content-Type", "application/x-www-form-urlencoded")
                                 .setHeader("Authorization", "Basic " + base64Url().encode("%s:%s".formatted(clientId, clientSecret).getBytes(UTF_8)))
                                 .setBodyGenerator(bodyGenerator)
                                 .build(),
                         createJsonResponseHandler(jsonCodec(Authentication.TokenResponse.class)));
+    }
+
+    private URI getTokenUri()
+    {
+        try {
+            var tokenUri = new URI(tokenEndpoint);
+
+            if (tokenUri.isAbsolute()) {
+                return tokenUri;
+            }
+        }
+        catch (URISyntaxException e) {
+            throw new TrinoException(GENERIC_INTERNAL_ERROR, format("Failed to construct the Token Endpoint URL: %s", e));
+        }
+
+        return uriBuilderFrom(baseUri)
+                .replacePath(tokenEndpoint)
+                .build();
     }
 
     private static String getBody(String grantType, String username, String password)
