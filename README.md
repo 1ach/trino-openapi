@@ -48,10 +48,8 @@ After reloading Trino, you should be able to connect to the `openapi` catalog.
 | base-uri                      | `OPENAPI_BASE_URI`               | Base URL for the API, often includes API version                                                         |
 | authentication.type           | `OPENAPI_AUTH_TYPE`              | Default authentication type if not set in the specification. One of: `none`, `http`, `api_key`, `oauth`. |
 | authentication.scheme         | `OPENAPI_AUTH_SCHEME`            | Authentication scheme for the `http` authentication type. One of: `basic`, `bearer`.                     |
-| authentication.token-endpoint | `OPENAPI_TOKEN_ENDPOINT`         | OAuth token endpoint URL                                                                                 |
 | authentication.client-id      | `OPENAPI_CLIENT_ID`              | OAuth Client ID                                                                                          |
 | authentication.client-secret  | `OPENAPI_CLIENT_SECRET`          | OAuth Client secret                                                                                      |
-| authentication.grant-type     | `OPENAPI_GRANT_TYPE`             | OAuth grant type                                                                                         |
 | authentication.username       | `OPENAPI_USERNAME`               | Username used for the `http` and `oauth` authentication types                                            |
 | authentication.password       | `OPENAPI_PASSWORD`               | Password used for the `http` and `oauth` authentication types                                            |
 | authentication.bearer-token   | `OPENAPI_BEARER_TOKEN`           | Bearer token for `http` authentication                                                                   |
@@ -127,7 +125,7 @@ APIs can use 4 different types of pagination:
 
 The connector currently supports only the `Page` pagination.
 
-To enable pagination, add a `x-pagination` section in the path's operation section:
+To enable pagination, add a `x-trino` section in the path's operation section:
 
 ```
 paths:
@@ -135,11 +133,32 @@ paths:
     get:
       responses:
         # ...
-      x-pagination:
+      x-trino:
        pageParam: "page"
        limitParam: "per-page"
        resultsPath: "$response.body#/workflows"
        totalResultsPath: "$response.body#/total_count"
+```
+
+### Error messages
+
+When the connector makes an API call, for which the server responds with an
+error, an SQL error is returned to the user. The error only contains the HTTP
+status code, and the whole error response body is not visible to the user.
+There are two reasons for this: if it's a JSON message, it might not be human
+readable, and could also contain sensitive information.
+
+To extract a human readable error message from error responses, set the
+`errorPath` property in the `x-trino` section:
+
+```
+paths:
+  /records:
+    get:
+      responses:
+        # ...
+      x-trino:
+       errorPath: "$response.body#/message"
 ```
 
 ## Build
