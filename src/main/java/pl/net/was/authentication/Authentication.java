@@ -34,6 +34,7 @@ import pl.net.was.OpenApiSpec;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLEncoder;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -232,9 +233,20 @@ public class Authentication
                       write:pets: modify pets in your account
                       read:pets: read your pets
                  */
-        var token = tokens.getUnchecked(authorizationUrl).
+        return builder.addHeader("Authorization", "Bearer " + getAuthToken(authorizationUrl).accessToken);
+    }
 
-        return builder.addHeader("Authorization", "Bearer " + tokens.getUnchecked(authorizationUrl));
+    private TokenResponse getAuthToken(String authorizationUrl)
+    {
+        var token = tokens.getUnchecked(authorizationUrl);
+
+        if (!Instant.now().isAfter(token.expiryDate)) {
+            return token;
+        }
+
+        this.tokens.invalidate(authorizationUrl);
+
+        return tokens.getUnchecked(authorizationUrl);
     }
 
     private static String getAuthHeader(String scheme, String username, String password)
@@ -257,8 +269,7 @@ public class Authentication
                                         getBody("client_credentials", clientId, clientSecret),
                                         UTF_8))
                                 .build(),
-                        createJsonResponseHandler(jsonCodec(Authentication.TokenResponse.class)))
-                .accessToken();
+                        createJsonResponseHandler(jsonCodec(Authentication.TokenResponse.class)));
     }
 
     private static String getBody(String grantType, String clientId, String clientSecret)
@@ -287,12 +298,18 @@ public class Authentication
     public void statusReceived(int statusCode)
     {
         if (statusCode == 401) {
-            token = null;
+            tokens.invalidateAll();
         }
     }
 
     public record TokenResponse(
             @JsonProperty("token_type") String tokenType,
             @JsonProperty("access_token") String accessToken,
-            @JsonProperty("expires_in") long expiresInSeconds) {}
+            @JsonProperty("expires_in") long expiresInSeconds,
+            Instant expiryDate)
+    {
+        public TokenResponse {
+            expiryDate = Instant.now().plusSeconds(expiresInSeconds);
+        }
+    }
 }
