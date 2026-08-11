@@ -20,6 +20,7 @@ import io.trino.testing.MaterializedRow;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
 import io.trino.testing.sql.TrinoSqlExecutor;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -32,11 +33,27 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class TestOpenApiQueries
         extends AbstractTestQueryFramework
 {
+    KeycloakServer keycloakServer;
+    PetStoreServer petStoreServer;
+    FastApiServer fastApiServer;
+
+    @AfterAll
+    void tearDown()
+    {
+        fastApiServer.close();
+        petStoreServer.close();
+        keycloakServer.close();
+    }
+
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        PetStoreServer petStoreServer = new PetStoreServer();
+        // this method is called from a @BeforeAll method in the super class
+        keycloakServer = new KeycloakServer();
+        petStoreServer = new PetStoreServer(keycloakServer);
+        fastApiServer = new FastApiServer();
+
         ImmutableMap.Builder<String, String> petStoreProperties = ImmutableMap.builder();
         petStoreProperties.putAll(Map.of(
                 "spec-location", petStoreServer.getSpecUrl(),
@@ -48,12 +65,9 @@ public class TestOpenApiQueries
                 "authentication.api-key-name", "api_key",
                 "authentication.api-key-value", "special-key"));
         petStoreProperties.putAll(Map.of(
-                "authentication.token-endpoint", "/oauth/token",
                 "authentication.client-id", "sample-client-id",
-                "authentication.client-secret", "secret",
-                "authentication.grant-type", "password"));
+                "authentication.client-secret", "secret"));
 
-        FastApiServer fastApiServer = new FastApiServer();
         ImmutableMap.Builder<String, String> fastApiProperties = ImmutableMap.builder();
         fastApiProperties.putAll(Map.of(
                 "spec-location", fastApiServer.getSpecUrl(),
@@ -72,13 +86,13 @@ public class TestOpenApiQueries
         assertQuery("SHOW SCHEMAS FROM petstore",
                 "VALUES 'default', 'information_schema'");
         assertQuery("SHOW TABLES FROM petstore.default",
-                "VALUES 'pet_find_by_status', 'store_inventory', 'store_order', 'pet', 'user', 'user_login', 'pet_upload_image'");
+                "VALUES 'pet_find_by_status', 'pet_find_by_tags', 'store_inventory', 'store_order', 'pet', 'user', 'user_create_with_list', 'user_login', 'pet_upload_image'");
     }
 
     @Test
     public void selectFromPetTable()
     {
-        assertQuery("SELECT name FROM petstore.default.pet_find_by_status WHERE status_req = array['available'] AND id != 100",
+        assertQuery("SELECT name FROM petstore.default.pet_find_by_status WHERE status = 'available' AND id != 100",
                 "VALUES ('Cat 1'), ('Cat 2'), ('Dog 1'), ('Lion 1'), ('Lion 2'), ('Lion 3'), ('Rabbit 1')");
         assertQuery("SELECT name FROM petstore.default.pet WHERE pet_id = 1",
                 "VALUES ('Cat 1')");
@@ -158,6 +172,29 @@ public class TestOpenApiQueries
                     .extracting(row -> row.getFields().getFirst())
                     .containsExactly("Portal Gun", "Plumbus");
         }
+    }
+
+    @Test
+    public void itemCategories()
+    {
+        List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM fastapi.default.item_categories").getMaterializedRows();
+        assertThat(rows).size().isEqualTo(1);
+        assertThat(rows.getFirst().getFields()).first().isEqualTo("main");
+    }
+
+    @Test
+    public void items()
+    {
+        List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM fastapi.default.items").getMaterializedRows();
+        assertThat(rows)
+                .extracting(row -> row.getFields().getFirst())
+                .containsExactly("Portal Gun", "Plumbus");
+    }
+
+    @Test
+    public void errors()
+    {
+        assertQueryFails("SELECT * FROM fastapi.default.error", "Server responded with error 418: \"Oops! Inevitable error happened. There goes a rainbow...\"");
     }
 
     private TestTable generateDataset(String namePrefix, int elements)

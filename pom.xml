@@ -5,12 +5,12 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>234</version>
+        <version>334</version>
     </parent>
 
     <groupId>pl.net.was</groupId>
     <artifactId>trino-openapi</artifactId>
-    <version>1.75</version>
+    <version>1.85</version>
     <packaging>trino-plugin</packaging>
 
     <name>${project.artifactId}</name>
@@ -26,7 +26,7 @@
 
     <scm>
         <developerConnection>scm:git:https://github.com/1ach/trino-openapi.git</developerConnection>
-        <tag>v1.75.2</tag>
+        <tag>v1.85.1</tag>
     </scm>
 
     <distributionManagement>
@@ -38,8 +38,8 @@
     </distributionManagement>
 
     <properties>
-        <project.build.targetJdk>23</project.build.targetJdk>
-        <air.java.version>23</air.java.version>
+        <project.build.targetJdk>25</project.build.targetJdk>
+        <air.java.version>25</air.java.version>
 
         <air.main.basedir>${project.basedir}</air.main.basedir>
 
@@ -51,26 +51,15 @@
         <air.check.fail-checkstyle>true</air.check.fail-checkstyle>
         <air.check.skip-checkstyle>false</air.check.skip-checkstyle>
         <air.build.jvmsize>4g</air.build.jvmsize>
+        <air.test.jvm.additional-arguments>--add-modules=jdk.incubator.vector</air.test.jvm.additional-arguments>
 
-        <dep.trino.version>474</dep.trino.version>
-        <dep.airlift.version>319</dep.airlift.version>
-        <dep.slice.version>2.3</dep.slice.version>
-        <dep.opentelemetry.version>1.48.0</dep.opentelemetry.version>
-        <dep.opentelemetry-instrumentation.version>2.14.0</dep.opentelemetry-instrumentation.version>
-        <dep.packaging.version>${dep.airlift.version}</dep.packaging.version>
-        <dep.guava.version>33.4.5-jre</dep.guava.version>
-        <dep.guice.version>7.0.0</dep.guice.version>
-        <dep.errorprone.version>2.37.0</dep.errorprone.version>
-        <dep.jackson.version>2.18.3</dep.jackson.version>
-        <dep.joda.version>2.13.1</dep.joda.version>
-        <dep.junit.version>5.12.1</dep.junit.version>
-        <dep.slf4j.version>2.0.17</dep.slf4j.version>
-        <dep.assertj-core.version>3.27.3</dep.assertj-core.version>
-        <dep.logback.version>1.5.18</dep.logback.version>
-        <dep.plugin.surefire.version>3.2.5</dep.plugin.surefire.version>
-        <dep.swagger-parser.version>2.1.25</dep.swagger-parser.version>
-        <dep.swagger-core.version>2.1.25</dep.swagger-core.version>
-        <dep.swagger-models.version>2.2.29</dep.swagger-models.version>
+        <dep.trino.version>479</dep.trino.version>
+        <dep.airlift.version>386</dep.airlift.version>
+        <dep.jackson-annotations.version>2.20</dep.jackson-annotations.version>
+        <dep.logback.version>1.5.22</dep.logback.version>
+        <dep.swagger-parser.version>2.1.36</dep.swagger-parser.version>
+        <dep.swagger-core.version>2.1.36</dep.swagger-core.version>
+        <dep.swagger-models.version>2.2.41</dep.swagger-models.version>
 
         <air.javadoc.lint>-missing</air.javadoc.lint>
         <!-- Do not run the duplicate finder, some dependencies did not migrate to jakarta libs -->
@@ -137,6 +126,7 @@
         <dependency>
             <groupId>com.google.inject</groupId>
             <artifactId>guice</artifactId>
+            <classifier>classes</classifier>
         </dependency>
 
         <dependency>
@@ -246,14 +236,14 @@
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>units</artifactId>
-            <version>1.10</version>
+            <version>1.12</version>
             <scope>runtime</scope>
         </dependency>
 
         <dependency>
             <groupId>com.github.docker-java</groupId>
             <artifactId>docker-java-api</artifactId>
-            <version>3.4.2</version>
+            <version>3.7.0</version>
             <scope>test</scope>
         </dependency>
 
@@ -320,7 +310,7 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>1.20.6</version>
+            <version>2.0.2</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -334,7 +324,7 @@
             </plugin>
             <plugin>
                 <artifactId>maven-release-plugin</artifactId>
-                <version>3.1.1</version>
+                <version>3.3.1</version>
                 <configuration>
                     <scmCommentPrefix>[ci skip]</scmCommentPrefix>
                     <tagNameFormat>v@{project.version}</tagNameFormat>
@@ -344,7 +334,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-scm-plugin</artifactId>
-                <version>2.1.0</version>
+                <version>2.2.1</version>
                 <configuration>
                     <pushChanges>true</pushChanges>
                 </configuration>
@@ -352,7 +342,7 @@
             <plugin>
                 <groupId>io.trino</groupId>
                 <artifactId>trino-maven-plugin</artifactId>
-                <version>15</version>
+                <version>17</version>
                 <extensions>true</extensions>
                 <configuration>
                     <pluginClassName>io.trino.spi.Plugin</pluginClassName>
@@ -371,7 +361,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-wrapper-plugin</artifactId>
-                <version>3.3.2</version>
+                <version>3.3.4</version>
             </plugin>
         </plugins>
     </build>

@@ -14,7 +14,6 @@
 
 package pl.net.was;
 
-import com.fasterxml.jackson.core.JsonPointer;
 import com.google.common.collect.ImmutableMap;
 import io.swagger.v3.oas.models.media.Schema;
 import io.trino.spi.connector.ColumnMetadata;
@@ -26,18 +25,16 @@ import java.util.Optional;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-import static io.swagger.v3.oas.models.PathItem.HttpMethod;
 import static java.util.Objects.requireNonNull;
 
 public class OpenApiColumn
 {
     private final String name;
     private final String sourceName;
-    private final JsonPointer resultsPointer;
     private final Type type;
     private final Schema<?> sourceType;
-    private final Map<HttpMethod, String> requiresPredicate;
-    private final Map<HttpMethod, String> optionalPredicate;
+    private final Map<HttpPath, ParameterLocation> requiresPredicate;
+    private final Map<HttpPath, ParameterLocation> optionalPredicate;
     private final ColumnMetadata metadata;
     private final boolean isPageNumber;
     private final OpenApiColumnHandle handle;
@@ -45,11 +42,10 @@ public class OpenApiColumn
     private OpenApiColumn(
             String name,
             String sourceName,
-            JsonPointer resultsPointer,
             Type type,
             Schema<?> sourceType,
-            Map<HttpMethod, String> requiresPredicate,
-            Map<HttpMethod, String> optionalPredicate,
+            Map<HttpPath, ParameterLocation> requiresPredicate,
+            Map<HttpPath, ParameterLocation> optionalPredicate,
             boolean isNullable,
             boolean isHidden,
             boolean isPageNumber,
@@ -57,7 +53,6 @@ public class OpenApiColumn
     {
         this.name = name;
         this.sourceName = sourceName;
-        this.resultsPointer = resultsPointer;
         this.type = type;
         this.sourceType = sourceType;
         this.requiresPredicate = ImmutableMap.copyOf(requiresPredicate);
@@ -83,11 +78,6 @@ public class OpenApiColumn
         return sourceName;
     }
 
-    public JsonPointer getResultsPointer()
-    {
-        return resultsPointer;
-    }
-
     public Type getType()
     {
         return type;
@@ -98,12 +88,12 @@ public class OpenApiColumn
         return sourceType;
     }
 
-    public Map<HttpMethod, String> getRequiresPredicate()
+    public Map<HttpPath, ParameterLocation> getRequiresPredicate()
     {
         return requiresPredicate;
     }
 
-    public Map<HttpMethod, String> getOptionalPredicate()
+    public Map<HttpPath, ParameterLocation> getOptionalPredicate()
     {
         return optionalPredicate;
     }
@@ -141,7 +131,6 @@ public class OpenApiColumn
         OpenApiColumn that = (OpenApiColumn) o;
         return Objects.equals(name, that.name)
                 && Objects.equals(sourceName, that.sourceName)
-                && Objects.equals(resultsPointer, that.resultsPointer)
                 && Objects.equals(type, that.type)
                 && Objects.equals(sourceType, that.sourceType)
                 && Objects.equals(requiresPredicate, that.requiresPredicate)
@@ -156,7 +145,6 @@ public class OpenApiColumn
         return "OpenApiColumn{" +
                 "name='" + name + '\'' +
                 ", sourceName='" + sourceName + '\'' +
-                ", resultsPointer='" + resultsPointer + '\'' +
                 ", type=" + type +
                 ", sourceType=" + sourceType.getType() +
                 ", requiresPredicate=" + requiresPredicate +
@@ -168,7 +156,7 @@ public class OpenApiColumn
 
     public int hashCode()
     {
-        return Objects.hash(name, sourceName, resultsPointer, type, sourceType, requiresPredicate, optionalPredicate, metadata, isPageNumber);
+        return Objects.hash(name, sourceName, type, sourceType, requiresPredicate, optionalPredicate, metadata, isPageNumber);
     }
 
     public static OpenApiColumn.Builder builder()
@@ -185,11 +173,10 @@ public class OpenApiColumn
     {
         private String name;
         private String sourceName;
-        private JsonPointer resultsPointer;
         private Type type;
         private Schema<?> sourceType;
-        private final SortedMap<HttpMethod, String> requiresPredicate = new TreeMap<>();
-        private final SortedMap<HttpMethod, String> optionalPredicate = new TreeMap<>();
+        private final SortedMap<HttpPath, ParameterLocation> requiresPredicate = new TreeMap<>();
+        private final SortedMap<HttpPath, ParameterLocation> optionalPredicate = new TreeMap<>();
         private boolean isNullable;
         private boolean isHidden;
         private boolean isPageNumber;
@@ -201,7 +188,6 @@ public class OpenApiColumn
         {
             this.name = handle.getName();
             this.sourceName = handle.getSourceName();
-            this.resultsPointer = handle.getResultsPointer();
             this.type = handle.getType();
             this.sourceType = handle.getSourceType();
             this.requiresPredicate.putAll(handle.getRequiresPredicate());
@@ -224,12 +210,6 @@ public class OpenApiColumn
             return this;
         }
 
-        public OpenApiColumn.Builder setResultsPointer(JsonPointer resultsPointer)
-        {
-            this.resultsPointer = requireNonNull(resultsPointer, "resultsPointer is null");
-            return this;
-        }
-
         public OpenApiColumn.Builder setType(Type type)
         {
             this.type = requireNonNull(type, "type is null");
@@ -242,13 +222,13 @@ public class OpenApiColumn
             return this;
         }
 
-        public OpenApiColumn.Builder setRequiresPredicate(Map<HttpMethod, String> requiresPredicate)
+        public OpenApiColumn.Builder setRequiresPredicate(Map<HttpPath, ParameterLocation> requiresPredicate)
         {
             this.requiresPredicate.putAll(requireNonNull(requiresPredicate, "requiresPredicate is null"));
             return this;
         }
 
-        public OpenApiColumn.Builder setOptionalPredicate(Map<HttpMethod, String> optionalPredicate)
+        public OpenApiColumn.Builder setOptionalPredicate(Map<HttpPath, ParameterLocation> optionalPredicate)
         {
             this.optionalPredicate.putAll(requireNonNull(optionalPredicate, "optionalPredicate is null"));
             return this;
@@ -285,7 +265,6 @@ public class OpenApiColumn
             return new OpenApiColumn(
                     name,
                     sourceName,
-                    resultsPointer,
                     type,
                     sourceType,
                     requiresPredicate,
