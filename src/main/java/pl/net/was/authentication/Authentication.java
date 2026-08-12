@@ -38,6 +38,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.io.BaseEncoding.base64Url;
@@ -240,7 +241,7 @@ public class Authentication
     {
         var token = tokens.getUnchecked(authorizationUrl);
 
-        if (!Instant.now().isAfter(token.expiryDate)) {
+        if (!Instant.now().isAfter(token.getExpiryDate())) {
             return token;
         }
 
@@ -302,14 +303,78 @@ public class Authentication
         }
     }
 
-    public record TokenResponse(
-            @JsonProperty("token_type") String tokenType,
-            @JsonProperty("access_token") String accessToken,
-            @JsonProperty("expires_in") long expiresInSeconds,
-            Instant expiryDate)
+    public static final class TokenResponse
     {
-        public TokenResponse {
+        @JsonProperty("token_type")
+        private final String tokenType;
+        @JsonProperty("access_token")
+        private final String accessToken;
+        @JsonProperty("expires_in")
+        private final long expiresInSeconds;
+        private final Instant expiryDate;
+
+        public TokenResponse(
+                @JsonProperty("token_type") String tokenType,
+                @JsonProperty("access_token") String accessToken,
+                @JsonProperty("expires_in") long expiresInSeconds)
+        {
+            this.tokenType = tokenType;
+            this.accessToken = accessToken;
+            this.expiresInSeconds = expiresInSeconds;
             expiryDate = Instant.now().plusSeconds(expiresInSeconds);
+        }
+
+        @JsonProperty("token_type")
+        public String tokenType()
+        {
+            return tokenType;
+        }
+
+        @JsonProperty("access_token")
+        public String accessToken()
+        {
+            return accessToken;
+        }
+
+        @JsonProperty("expires_in")
+        public long expiresInSeconds()
+        {
+            return expiresInSeconds;
+        }
+
+        public Instant getExpiryDate()
+        {
+            return expiryDate;
+        }
+
+        @Override
+        public boolean equals(Object obj)
+        {
+            if (obj == this) {
+                return true;
+            }
+            if (obj == null || obj.getClass() != this.getClass()) {
+                return false;
+            }
+            var that = (TokenResponse) obj;
+            return Objects.equals(this.tokenType, that.tokenType) &&
+                    Objects.equals(this.accessToken, that.accessToken) &&
+                    this.expiresInSeconds == that.expiresInSeconds;
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return Objects.hash(tokenType, accessToken, expiresInSeconds);
+        }
+
+        @Override
+        public String toString()
+        {
+            return "TokenResponse[" +
+                    "tokenType=" + tokenType + ", " +
+                    "accessToken=" + accessToken + ", " +
+                    "expiresInSeconds=" + expiresInSeconds + ']';
         }
     }
 }
