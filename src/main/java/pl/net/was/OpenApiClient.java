@@ -27,6 +27,7 @@ import com.google.common.io.CharStreams;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.inject.Inject;
 import io.airlift.http.client.BodyGenerator;
+import io.airlift.http.client.HeaderName;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpStatus;
 import io.airlift.http.client.HttpUriBuilder;
@@ -278,12 +279,12 @@ public class OpenApiClient
                 .setMethod(httpPath.method().name())
                 .setBodyGenerator(bodyGenerator)
                 .setUri(uri)
-                .addHeader(USER_AGENT, USER_AGENT_VALUE)
-                .addHeader(CONTENT_TYPE, JSON_UTF_8.toString())
-                .addHeader(ACCEPT, JSON_UTF_8.toString())
-                .addHeader("X-Trino-OpenAPI-Path", httpPath.path());
+                .addHeader(HeaderName.of(USER_AGENT), USER_AGENT_VALUE)
+                .addHeader(HeaderName.of(CONTENT_TYPE), JSON_UTF_8.toString())
+                .addHeader(HeaderName.of(ACCEPT), JSON_UTF_8.toString())
+                .addHeader(HeaderName.of("X-Trino-OpenAPI-Path"), httpPath.path());
         getFilterValues(table, httpPath, ParameterLocation.HEADER)
-                .forEach((key, value) -> builder.addHeader(key, value.toString()));
+                .forEach((key, value) -> builder.addHeader(HeaderName.of(key), value.toString()));
 
         Request request = builder.build();
         log.debug(request.toString());
